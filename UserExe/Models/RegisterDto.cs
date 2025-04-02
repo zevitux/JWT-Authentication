@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace UserExe.Models;
 
-public class UserDto
+public class RegisterDto
 {
     [Required]
     public string Name { get; set; } = string.Empty;

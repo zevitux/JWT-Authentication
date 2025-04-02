@@ -38,7 +38,7 @@ public class AuthService(MyAppDbContext context, IConfiguration configuration) :
     }
     
     //Method to handle user registration
-    public async Task<User?> RegisterAsync(UserDto request)
+    public async Task<User?> RegisterAsync(RegisterDto request)
     {
         //Check if email already exists
         if (await context.Users.AnyAsync(u => u.Email == request.Email))
