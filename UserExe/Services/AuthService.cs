@@ -11,19 +11,28 @@ using UserExe.Models;
 
 namespace UserExe.Services;
 
-public class AuthService(MyAppDbContext context, IConfiguration configuration) : IAuthService
+public class AuthService(MyAppDbContext context, IConfiguration configuration, ILogger<AuthService> logger) : IAuthService
 {
-    public async Task<TokenResponseDto?> LoginAsync(LoginDto request) 
+    public async Task<TokenResponseDto?> LoginAsync(LoginDto request)
     {
+        logger.LogInformation("Login login attempt for email: {Email}", request.Email);
+        
         var user = await context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-        if(user == null) 
+        if (user == null)
+        {
+            logger.LogWarning("Login login attempt failed for email: {Email}", request.Email);   
             return null;
+        }
         
         // Verify the provided password against the stored password hash
         if (new PasswordHasher<User>().VerifyHashedPassword(user, user.PasswordHash, request.Password) ==
             PasswordVerificationResult.Failed)
+        {
+            logger.LogWarning("Login login attempt failed for email: {Email}", request.Email);
             return null;
+        }
         
+        logger.LogInformation("User with e-mail: {Email} logged in successfully", request.Email);
         return await CreateTokenResponse(user); 
     }
     
@@ -40,9 +49,13 @@ public class AuthService(MyAppDbContext context, IConfiguration configuration) :
     //Method to handle user registration
     public async Task<User?> RegisterAsync(RegisterDto request)
     {
+        logger.LogInformation("Register request attempt for email: {Email}", request.Email);
         //Check if email already exists
         if (await context.Users.AnyAsync(u => u.Email == request.Email))
+        {
+            logger.LogWarning("E-mail: {Email} already exists", request.Email);
             return null;
+        }
 
         var user = new User
         {
@@ -58,23 +71,33 @@ public class AuthService(MyAppDbContext context, IConfiguration configuration) :
         //Generate and save the refresh token...
         await GenerateAndSaveRefreshTokenAsync(user);
         
+        logger.LogInformation("User with e-mail: {Email} registered successfully", request.Email);
         return user;
     }
 
     public async Task<TokenResponseDto?> RefreshTokensAsync(RefreshTokenRequestDto request)
     {
+        logger.LogInformation("Refresh token attempt for user with Id: {UserId}", request.UserId);
+        
         var user = await ValidateRefreshTokenAsync(request.UserId, request.RefreshToken);
         if (user == null)
+        {
+            logger.LogWarning("Refresh token failed for user with Id: {UserId}", request.UserId);
             return null;
+        }
         
         return await CreateTokenResponse(user);
     }
 
     private async Task<User?> ValidateRefreshTokenAsync(int userId, string refreshToken)
     {
+        
         var user = await context.Users.FindAsync(userId);
-        if(user == null || user.RefreshToken != refreshToken || user.RefreshTokenExpiryTime <= DateTime.Now)
+        if (user == null || user.RefreshToken != refreshToken || user.RefreshTokenExpiryTime <= DateTime.Now)
+        {
+            logger.LogWarning("Invalid refresh token for user with Id: {UserId}", userId);
             return null;
+        }
         
         return user;
     }
@@ -99,6 +122,7 @@ public class AuthService(MyAppDbContext context, IConfiguration configuration) :
         context.Users.Update(user);
         await context.SaveChangesAsync();
         
+        logger.LogInformation("User with e-mail: {Email} generated successfully", user.Email);
         return refreshToken;
     }
 
@@ -126,6 +150,7 @@ public class AuthService(MyAppDbContext context, IConfiguration configuration) :
             signingCredentials: creds
         );
         
+        logger.LogInformation("JWT Token created for user with e-mail: {Email}", user.Email);
         return new JwtSecurityTokenHandler().WriteToken(tokenDescriptor); //Convert to string and return
     }
 }

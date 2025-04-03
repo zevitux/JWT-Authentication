@@ -8,32 +8,40 @@ namespace UserExe.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class AuthController(IAuthService authService) : ControllerBase
+public class AuthController : ControllerBase
 {
+    private readonly IAuthService _authService;
+    private readonly ILogger<AuthController> _logger;
+
+    public AuthController(IAuthService authService, ILogger<AuthController> logger)
+    {
+        _authService = authService;
+        _logger = logger;
+    }
+    
     [HttpPost("register")]
     public async Task<ActionResult<User>> Register(RegisterDto request)
     {
-        var user = await authService.RegisterAsync(request);
-        if(user == null)
+        var user = await _authService.RegisterAsync(request);
+        if (user == null)
             return BadRequest("Email already in use!");
-
+        
         return Ok(user);
     }
     
     [HttpPost("login")]
     public async Task<ActionResult<TokenResponseDto>> Login(LoginDto request)
     {
-        var result = await authService.LoginAsync(request);
+        var result = await _authService.LoginAsync(request);
         if (result == null)
-            return BadRequest("Email or password is incorrect!");
-            
+            return BadRequest("E-mail or password is incorrect!");
         return Ok(result);
     }
 
     [HttpPost("refresh-token")]
     public async Task<ActionResult<TokenResponseDto>> RefreshToken(RefreshTokenRequestDto request)
     {
-        var result = await authService.RefreshTokensAsync(request);
+        var result = await _authService.RefreshTokensAsync(request);
         if(result == null || result.RefreshToken == null)
             return Unauthorized("Refresh tokens are invalid!");
         
@@ -44,6 +52,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     [HttpGet]
     public IActionResult AuthenticatedOnlyEndpoint()
     {
+        _logger.LogInformation("Authenticated endpoint accessed by the user: {User}", User.Identity?.Name);
         return Ok("You are logged in!");
     }
 
@@ -51,6 +60,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     [HttpGet("admin-only")]
     public IActionResult AdminOnlyEndpoint()
     {
+        _logger.LogInformation("Admin endpoint accessed by the user: {User}", User.Identity?.Name);
         return Ok("You are a admin!");
     }
 }
