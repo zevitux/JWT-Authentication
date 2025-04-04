@@ -25,7 +25,7 @@ public class AuthService(MyAppDbContext context, IConfiguration configuration, I
         }
         
         // Verify the provided password against the stored password hash
-        if (new PasswordHasher<User>().VerifyHashedPassword(user, user.PasswordHash, request.Password) ==
+        if (new PasswordHasher<User>().VerifyHashedPassword(user, user.PasswordHash, request.Password!) ==
             PasswordVerificationResult.Failed)
         {
             logger.LogWarning("Login login attempt failed for email: {Email}", request.Email);
@@ -42,7 +42,7 @@ public class AuthService(MyAppDbContext context, IConfiguration configuration, I
         return new TokenResponseDto()
         {
             AccessToken = CreateToken(user),
-            RefreshToken = await GenerateAndSaveRefreshTokenAsync(user),
+            RefreshToken = (await GenerateAndSaveRefreshTokenAsync(user))!,
         };
     }
     
@@ -56,12 +56,14 @@ public class AuthService(MyAppDbContext context, IConfiguration configuration, I
             logger.LogWarning("E-mail: {Email} already exists", request.Email);
             return null;
         }
-
+        var adminEmail = configuration.GetSection("AppSettings:AdminEmails").Get<string[]>();
+        bool isAdmin = adminEmail?.Contains(request.Email) ?? false;
+        
         var user = new User
         {
             Name = request.Name,
             Email = request.Email,
-            Role = request.Email == "admin@gmail.com" ? "Admin" : "User" // Admin only for specific emails
+            Role = isAdmin ? "Admin" : "User" // Admin only for specific emails
         };
         
         user.PasswordHash = new PasswordHasher<User>().HashPassword(user, request.Password);
@@ -93,7 +95,7 @@ public class AuthService(MyAppDbContext context, IConfiguration configuration, I
     {
         
         var user = await context.Users.FindAsync(userId);
-        if (user == null || user.RefreshToken != refreshToken || user.RefreshTokenExpiryTime <= DateTime.Now)
+        if (user == null || user.RefreshToken != refreshToken || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
         {
             logger.LogWarning("Invalid refresh token for user with Id: {UserId}", userId);
             return null;
@@ -119,7 +121,6 @@ public class AuthService(MyAppDbContext context, IConfiguration configuration, I
         user.RefreshToken = refreshToken;
         user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
         
-        context.Users.Update(user);
         await context.SaveChangesAsync();
         
         logger.LogInformation("User with e-mail: {Email} generated successfully", user.Email);

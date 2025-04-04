@@ -42,7 +42,7 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<TokenResponseDto>> RefreshToken(RefreshTokenRequestDto request)
     {
         var result = await _authService.RefreshTokensAsync(request);
-        if(result == null || result.RefreshToken == null)
+        if(result == null)
             return Unauthorized("Refresh tokens are invalid!");
         
         return Ok(result);
