@@ -56,9 +56,6 @@ UserExe is a simple authentication and authorization API built with .NET 9 and A
 - **Authenticated Users:** `GET /api/auth`
 - **Admin-Only:** `GET /api/auth/admin-only` (Requires Admin role)
 
-## Testing
-Use tools like **Postman** or **Swagger** to test the API endpoints.
-
 ## Contributing
 Feel free to fork this repository and submit pull requests with improvements or bug fixes.
 
